@@ -23,6 +23,13 @@ def get_calendar_service():
     if calendar_service:
         return calendar_service
 
+    # --- MODIFIED: Check for credentials.json before proceeding ---
+    if not os.path.exists(CREDENTIALS_FILE):
+        logger.error(f"{CREDENTIALS_FILE} not found. Google Calendar service cannot be initialized in this environment.")
+        # Optionally, you could try to read client_id/secret from environment variables here
+        # or just return None and disable functionality.
+        return None # Fail gracefully if file is missing
+
     creds = None
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
@@ -31,11 +38,19 @@ def get_calendar_service():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, 'w') as token:
-            token.write(creds.to_json())
+            try: # Wrap this part in try-except in case file is malformed
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    CREDENTIALS_FILE, SCOPES)
+                creds = flow.run_local_server(port=0) # This will not work on a headless server like Render
+            except Exception as e:
+                logger.error(f"Error during Google Calendar authentication flow: {e}. Cannot obtain new credentials.")
+                return None # Cannot authenticate, so return None
+
+        # On Render, writing to token.json is ephemeral or requires special setup
+        # For this assignment, we will skip saving token.json on Render.
+        # Just use the 'creds' object directly for the 'build' step.
+        # with open(TOKEN_FILE, 'w') as token:
+        #     token.write(creds.to_json())
 
     try:
         calendar_service = build('calendar', 'v3', credentials=creds)
@@ -44,6 +59,10 @@ def get_calendar_service():
     except HttpError as error:
         logger.error(f"An error occurred during Google Calendar service initialization: {error}")
         return None
+    except Exception as e: # Catch other potential errors during build
+        logger.error(f"Unexpected error during Google Calendar service build: {e}")
+        return None
+
 
 def create_calendar_event(
     service,
@@ -118,12 +137,6 @@ def get_free_busy_slots(service, calendar_id: str, start_time: datetime.datetime
         return []
 
 if __name__ == '__main__':
-    service = get_calendar_service()
-    if service:
-        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-        start_event_time = datetime.datetime.combine(tomorrow, datetime.time(11, 0, 0))
-        end_event_time = start_event_time + datetime.timedelta(minutes=30)
-
-        # IMPORTANT: Replace with a real Google Calendar email you have authenticated
-        doctor_calendar_id = "your.doctor.email@example.com" 
-        
+    # Remove or comment out this block when deploying to Render
+    # as it attempts local server authentication which will fail.
+    pass # Keep this for local testing only
