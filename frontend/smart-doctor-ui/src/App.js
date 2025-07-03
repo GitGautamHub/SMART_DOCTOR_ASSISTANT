@@ -28,7 +28,7 @@ function App() {
   // NEW: Instruction box state
   const [showInstructions, setShowInstructions] = useState(true);
 
-  const BACKEND_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000';
+  const BACKEND_BASE_URL = 'https://smart-doctor-backend-api-gautam.onrender.com';
   const CHAT_URL = `${BACKEND_BASE_URL}/chat/`;
   const HISTORY_URL = `${BACKEND_BASE_URL}/history/`;
 
