@@ -33,6 +33,7 @@ from tools import (
 from schemas import ( # Import all necessary Pydantic schemas
     CheckDoctorAvailabilityInput,
     BookAppointmentInput,
+    DoctorRegister,
     GetDoctorSummaryReportInput,
     ChatRequest,
     ChatResponse,
@@ -73,18 +74,23 @@ def read_root():
 # --- User Authentication Endpoints ---
 
 @app.post("/register/", response_model=schemas.User)
-def register_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
-    """Registers a new user (patient or doctor) and creates/links a patient profile if applicable."""
+@app.post("/register/", response_model=schemas.User)
+def register_user(
+    user_data: Union[schemas.UserCreate, schemas.DoctorRegister], # Allow either schema
+    db: Session = Depends(get_db)
+):
+    """Registers a new user (patient or doctor) and creates/links a profile."""
+    # Check if email is already registered
     db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if db_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
+    # Hash password and create User entry
     hashed_password = get_password_hash(user_data.password)
     db_user = models.User(email=user_data.email, hashed_password=hashed_password, role=user_data.role)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-
     if user_data.role == "patient":
         db_patient = db.query(models.Patient).filter(models.Patient.email == user_data.email).first()
         if not db_patient:
@@ -95,6 +101,16 @@ def register_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
         else:
             db_patient.user_id = db_user.id
             db.commit()
+            db.refresh(db_patient) 
+
+    elif user_data.role == "doctor":
+        if not isinstance(user_data, schemas.DoctorRegister):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Doctor registration requires name and specialty.")
+
+        db_doctor = models.Doctor(name=user_data.name, specialty=user_data.specialty, email=user_data.email)
+        db.add(db_doctor)
+        db.commit()
+        db.refresh(db_doctor)
 
     return db_user
 

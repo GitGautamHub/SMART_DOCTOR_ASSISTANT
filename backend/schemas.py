@@ -10,6 +10,11 @@ class UserCreate(UserBase):
     password: str
     role: Optional[str] = "patient"
 
+class DoctorRegister(UserCreate):
+    name: str = Field(..., description="Full name of the doctor.")
+    specialty: str = Field(..., description="Specialty of the doctor (e.g., Cardiologist, Pediatrician).")
+    role: str = "doctor"
+
 class UserInDB(UserBase):
     hashed_password: str
     role: str
