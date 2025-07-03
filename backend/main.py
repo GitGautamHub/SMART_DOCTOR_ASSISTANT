@@ -80,6 +80,8 @@ app = FastAPI(lifespan=lifespan)
 origins = [
     "http://localhost",
     "http://localhost:3000", # Your React frontend URL
+    "https://smart-doctor-assistant.vercel.app",
+    "https://smart-doctor-backend-api-gautam.onrender.com"
 ]
 
 
