@@ -3,6 +3,7 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 import logging
+from contextlib import asynccontextmanager
 
 # Third-party library imports
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -50,13 +51,37 @@ load_dotenv()
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles startup and shutdown events for the FastAPI application.
+    Database table creation is performed here on startup.
+    """
+    logger.info("Application startup: Attempting to create database tables...")
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/checked successfully on startup.")
+    except Exception as e:
+        logger.error(f"Error creating database tables on startup: {e}")
+        # In a real app, you might want to exit if DB setup is critical
+        # sys.exit(1)
+
+    # Yield control to the application to start serving requests
+    yield
+
+    # This part runs on shutdown (optional for this assignment, but good to know)
+    logger.info("Application shutdown: Performing cleanup (if any)...")
+
+
+app = FastAPI(lifespan=lifespan) 
 
 # Configure CORS middleware
 origins = [
     "http://localhost",
     "http://localhost:3000", # Your React frontend URL
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
