@@ -1,0 +1,47 @@
+
+.venv/
+env/
+venv/
+
+*.pyc
+__pycache__/
+
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pytest cache files
+.pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IDE specific files
+.idea/
+.vscode/
+
+
+backend/.env
+
+# Google API credentials and tokens
+backend/credentials.json
+backend/token.json
+
+
+frontend/smart-doctor-ui/node_modules/
+
+frontend/smart-doctor-ui/build/
+frontend/smart-doctor-ui/dist/
+
+frontend/smart-doctor-ui/.env.local
+frontend/smart-doctor-ui/.env.development.local
+frontend/smart-doctor-ui/.env.test.local
+frontend/smart-doctor-ui/.env.production.local
+
+frontend/smart-doctor-ui/npm-debug.log*
+frontend/smart-doctor-ui/yarn-debug.log*
+frontend/smart-doctor-ui/yarn-error.log*
+frontend/smart-doctor-ui/.pnpm-debug.log*
+]
+.DS_Store
+Thumbs.db
