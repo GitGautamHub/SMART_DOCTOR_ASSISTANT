@@ -440,8 +440,14 @@ While the system is highly functional, please note the following:
     *   As a result, the role-based access check within the get\_doctor\_summary\_report\_tool is currently not always enforcing access control when a non-doctor user (e.g., a patient) tries to request a doctor's report via natural language. The tool might execute despite the role.
         
     *   This would require further in-depth debugging of LangChain's context-passing mechanisms or alternative agent configurations in a production environment. However, the authentication layer itself (login, /users/me/) is fully functional.
+
+2.  **Google Calendar Integration on Deployment:**
+    * The Google Calendar API integration (for checking availability and booking events) **will NOT function on the deployed Render backend.**
+    * This is because the current authentication method (`InstalledAppFlow.from_client_secrets_file`) requires a browser-based local server authentication flow which is not possible on a headless cloud server like Render.
+    * For a production deployment, Google Service Accounts or alternative OAuth flows designed for server-to-server interaction would be required, which are beyond the scope of this assignment's "minimal" deployment instructions.
+    * **Impact:** On the live deployed app, doctor availability will only reflect existing appointments stored in the PostgreSQL database, and new bookings will be recorded in the database and send emails, but **no actual event will be created in Google Calendar.**
         
-2.  **Doctor Notification Mechanism:**
+3.  **Doctor Notification Mechanism:**
     
     *   The doctor notification for summary reports is currently implemented as a simple console printout in the backend terminal. For a production system, this would be integrated with external notification platforms like Slack, WhatsApp Business API, or an in-app notification system.
         
