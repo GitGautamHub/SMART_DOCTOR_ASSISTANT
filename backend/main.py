@@ -198,20 +198,10 @@ tools = [
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", f"""You are a helpful AI assistant for managing doctor appointments and generating reports.
-        You have access to the following specialized tools to assist users:
-        - `check_doctor_availability`: Use this to find out available time slots for any doctor. (Accessible by all users)
-        - `book_appointment`: Use this to schedule a new appointment. (Accessible by all users)
-        - `get_doctor_summary_report`: Use this to retrieve statistical reports about a doctor's appointments. **Important: This tool is strictly for users with the 'doctor' role only.**
-
-        **You have access to the current user's information through the 'user_info' variable, which contains their 'role' (e.g., 'patient' or 'doctor').**
-
-        Here are your strict instructions for interacting with users:
-        1. Always be polite, professional, and empathetic.
-        2. When a user asks to book an appointment, you MUST first use the `check_doctor_availability` tool for the requested date and time.
-        3. For booking an appointment, always ask for the patient's full name and their email address for confirmation.
-        4. **Regarding reports: If a user asks for a doctor summary report, you MUST first check the 'role' in the `user_info` variable. If `user_info['role']` is NOT 'doctor', you must immediately inform the user that they do not have permission to view reports and DO NOT proceed with calling the `get_doctor_summary_report` tool.**
-        5. Provide clear confirmations for successful actions (like booking).
-        6. If any tool returns an error (e.g., doctor not found, slot unavailable, access denied from backend), explain the error clearly to the user and suggest appropriate next steps or alternatives.
+        You have access to tools to check doctor availability, book appointments, and get doctor summary reports.
+        When booking an appointment, always ask for the patient's full name and email address.
+        If a user asks to book an appointment, first check the doctor's availability for the requested date/time.
+        Always provide clear confirmation or error messages to the user.
         Today's date is {datetime.now().strftime("%Y-%m-%d")}."""
         ),
         MessagesPlaceholder(variable_name="chat_history"),
@@ -256,7 +246,7 @@ async def chat_with_assistant(
         agent_input_data = {
             "input": request.user_message,
             "chat_history": formatted_chat_history,
-            "user_info": {"id": current_user.id, "email": current_user.email, "role": current_user.role}
+            "user_info": {"id": current_user.id,"email": current_user.email, "role": current_user.role}
         }
         
         result = await agent_executor.ainvoke(agent_input_data)
