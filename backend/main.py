@@ -29,7 +29,8 @@ from database import engine, get_db
 from tools import (
     check_doctor_availability_tool,
     book_appointment_tool,
-    get_doctor_summary_report_tool
+    get_doctor_summary_report_tool,
+    list_all_doctors_tool
 )
 from schemas import ( # Import all necessary Pydantic schemas
     CheckDoctorAvailabilityInput,
@@ -179,6 +180,15 @@ book_appointment_langchain_tool = StructuredTool.from_function(
     handle_tool_error=True,
     coroutine=book_appointment_tool
 )
+list_doctors_tool = StructuredTool.from_function(
+    func=list_all_doctors_tool,
+    name="list_all_doctors",
+    description="Useful for providing a list of all doctors available in the system, along with their specialties. Use this when the user asks to see available doctors or to list all doctors.",
+    # This tool takes no specific arguments, so args_schema can be simple/empty
+    # args_schema=BaseModel, # Or just omit if the function takes no arguments and description is clear
+    handle_tool_error=True,
+    coroutine=list_all_doctors_tool
+)
 
 get_summary_report_tool = StructuredTool.from_function(
     func=get_doctor_summary_report_tool,
@@ -192,16 +202,24 @@ get_summary_report_tool = StructuredTool.from_function(
 tools = [
     check_availability_tool,
     book_appointment_langchain_tool,
-    get_summary_report_tool
+    get_summary_report_tool,
+    list_doctors_tool
 ]
-
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", f"""You are a helpful AI assistant for managing doctor appointments and generating reports.
-        You have access to tools to check doctor availability, book appointments, and get doctor summary reports.
-        When booking an appointment, always ask for the patient's full name and email address.
-        If a user asks to book an appointment, first check the doctor's availability for the requested date/time.
-        Always provide clear confirmation or error messages to the user.
+        You have access to the following specialized tools to assist users:
+        - `list_all_doctors`: Use this to show the user a list of all doctors and their specialties in the system. (Accessible by all users)
+        - `check_doctor_availability`: Use this to find out available time slots for any doctor. (Accessible by all users)
+        - `book_appointment`: Use this to schedule a new appointment. (Accessible by all users)
+        - `get_doctor_summary_report`: Use this to retrieve statistical reports about a doctor's appointments. (Accessible by all users) 
+        Here are your strict instructions for interacting with users:
+        1. Always be polite, professional, and empathetic.
+        2. If the user asks "Who are the doctors?", "List all doctors", or similar queries to see available doctors, you MUST use the `list_all_doctors` tool and present the list clearly. After presenting the list, ask the user to choose a doctor for an appointment.
+        3. When a user asks to book an appointment, you MUST first use the `check_doctor_availability` tool for the requested date and time.
+        4. For booking an appointment, always ask for the patient's full name and their email address for confirmation.
+        5. Provide clear confirmations for successful actions (like booking).
+        6. If any tool returns an error (e.g., doctor not found, slot unavailable, access denied from backend), explain the error clearly to the user and suggest appropriate next steps or alternatives.
         Today's date is {datetime.now().strftime("%Y-%m-%d")}."""
         ),
         MessagesPlaceholder(variable_name="chat_history"),

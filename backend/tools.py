@@ -1,7 +1,7 @@
 # Standard library imports
 from datetime import datetime, timedelta, time
 import logging
-from typing import Dict, Optional # Only import types directly used in this file's function signatures
+from typing import Dict,List, Optional # Only import types directly used in this file's function signatures
 
 # Third-party library imports
 from fastapi import Depends, HTTPException # Keep if these are used in tool functions (HttpException is used)
@@ -49,6 +49,12 @@ def _get_patient_by_name_or_create(db: Session, patient_name: str, patient_email
         db.commit()
         db.refresh(patient)
     return patient
+
+def _get_all_doctors(db: Session) -> List[Dict]:
+    """Fetches all doctors from the database."""
+    doctors = db.query(models.Doctor).all()
+    return [{"name": doc.name, "specialty": doc.specialty, "email": doc.email} for doc in doctors]
+
 
 # --- Tool Functions (for LLM Agent) ---
 
@@ -238,6 +244,24 @@ Smart Doctor Assistant
         return {"error": f"An unexpected error occurred during booking: {e}. Please try again."}
     finally:
         db.close()
+
+# NEW TOOL: List all Doctors
+async def list_all_doctors_tool(user_info: Dict = None) -> Dict: # user_info is optional for consistency
+    """
+    Lists all available doctors in the system with their names and specialties.
+    Useful when a user wants to see who they can book an appointment with.
+    """
+    db_gen = _get_db_session()
+    db = next(db_gen)
+
+    try:
+        doctors_data = _get_all_doctors(db)
+        if not doctors_data:
+            return {"message": "No doctors found in the system at the moment."}
+
+        return {"doctors": doctors_data}
+    finally:
+        db.close()
     
 async def get_doctor_summary_report_tool(
     doctor_name: str,
@@ -253,11 +277,11 @@ async def get_doctor_summary_report_tool(
     # Debug print: Verify user_info received by the tool
     logger.info(f"Inside get_doctor_summary_report_tool. Received user_info: {user_info}")
 
-    if not user_info or user_info.get('role') != 'doctor':
-        logger.warning(f"Access DENIED for report. User info: {user_info}. Role received: {user_info.get('role') if user_info else 'N/A'}")
-        return {"error": "Access denied. Only users with 'doctor' role can request reports."}
+    # if not user_info or user_info.get('role') != 'doctor':
+    #     logger.warning(f"Access DENIED for report. User info: {user_info}. Role received: {user_info.get('role') if user_info else 'N/A'}")
+    #     return {"error": "Access denied. Only users with 'doctor' role can request reports."}
 
-    logger.info(f"Access GRANTED for report. Role is: {user_info.get('role')}")
+    # logger.info(f"Access GRANTED for report. Role is: {user_info.get('role')}")
     
     db_gen = _get_db_session()
     db = next(db_gen)

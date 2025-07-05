@@ -1,10 +1,12 @@
+# backend/calendar_service.py
 import os.path
 import datetime
 import logging
+import json # NEW: To parse JSON string from environment variable
 
+# google.auth modules for Service Account
 from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials # MODIFIED IMPORT: Use this for service account auth
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -12,55 +14,63 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
-TOKEN_FILE = 'token.json'
-CREDENTIALS_FILE = 'credentials.json'
+# TOKEN_FILE = 'token.json' # Not needed for Service Account in deployment
+# CREDENTIALS_FILE = 'credentials.json' # Not needed for Service Account in deployment
+
+# NEW: Environment variable name for service account credentials JSON content (for deployment)
+GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON")
 
 calendar_service = None
 
 def get_calendar_service():
-    """Initializes and returns the Google Calendar API service, handling authentication."""
+    """Initializes and returns the Google Calendar API service, handling authentication using a Service Account."""
     global calendar_service
     if calendar_service:
         return calendar_service
 
-    # --- MODIFIED: Check for credentials.json before proceeding ---
-    if not os.path.exists(CREDENTIALS_FILE):
-        logger.error(f"{CREDENTIALS_FILE} not found. Google Calendar service cannot be initialized in this environment.")
-        # Optionally, you could try to read client_id/secret from environment variables here
-        # or just return None and disable functionality.
-        return None # Fail gracefully if file is missing
+    # --- MODIFIED LOGIC: Use Service Account credentials from environment variable ---
+    creds_info = None
 
-    creds = None
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+    # Priority 1: Try to load credentials from environment variable (for deployment)
+    if GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON:
+        try:
+            creds_info = json.loads(GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON)
+            logger.info("Attempting to initialize Google Calendar service from environment variable.")
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON (from env var): {e}. Check JSON format in environment variable.")
+            creds_info = None # Reset to None if decoding fails
+    
+    # Priority 2: If not from env var, try to load credentials from local file (for local development/testing)
+    # This block is added for local flexibility; Render will use the env var
+    local_service_account_key_file_path = 'service_account_key.json' # Make sure this file is in backend/ and in .gitignore
+    if not creds_info:
+        if os.path.exists(local_service_account_key_file_path):
+            try:
+                with open(local_service_account_key_file_path, "r") as f:
+                    creds_info = json.load(f)
+                logger.info(f"Attempting to initialize Google Calendar service from local file: {local_service_account_key_file_path}.")
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                logger.error(f"Error loading local service account key file '{local_service_account_key_file_path}': {e}. Check file path/JSON format.")
+                creds_info = None
         else:
-            try: # Wrap this part in try-except in case file is malformed
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    CREDENTIALS_FILE, SCOPES)
-                creds = flow.run_local_server(port=0) # This will not work on a headless server like Render
-            except Exception as e:
-                logger.error(f"Error during Google Calendar authentication flow: {e}. Cannot obtain new credentials.")
-                return None # Cannot authenticate, so return None
+            logger.warning(f"Neither GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON env var nor local file '{local_service_account_key_file_path}' found. Google Calendar service cannot be initialized.")
+            return None # Fail gracefully if no credentials source found
 
-        # On Render, writing to token.json is ephemeral or requires special setup
-        # For this assignment, we will skip saving token.json on Render.
-        # Just use the 'creds' object directly for the 'build' step.
-        # with open(TOKEN_FILE, 'w') as token:
-        #     token.write(creds.to_json())
-
-    try:
-        calendar_service = build('calendar', 'v3', credentials=creds)
-        logger.info("Google Calendar service initialized successfully.")
-        return calendar_service
-    except HttpError as error:
-        logger.error(f"An error occurred during Google Calendar service initialization: {error}")
-        return None
-    except Exception as e: # Catch other potential errors during build
-        logger.error(f"Unexpected error during Google Calendar service build: {e}")
+    # If credentials info is successfully obtained, try to build the service
+    if creds_info:
+        try:
+            # Use the imported ServiceAccountCredentials class
+            creds = ServiceAccountCredentials.from_service_account_info(
+                creds_info, scopes=SCOPES
+            )
+            calendar_service = build('calendar', 'v3', credentials=creds)
+            logger.info("Google Calendar service initialized successfully using Service Account credentials.")
+            return calendar_service
+        except Exception as e:
+            logger.error(f"An error occurred during Google Calendar service build with Service Account: {e}")
+            return None
+    else:
+        logger.warning("No valid Google Calendar credentials found or loaded. Calendar features will be limited.")
         return None
 
 
@@ -71,7 +81,7 @@ def create_calendar_event(
     description: str,
     start_datetime: datetime.datetime,
     end_datetime: datetime.datetime,
-    attendees: list = None
+    attendees: list = None # This parameter will still be accepted by the function
 ):
     """Creates an event on the specified Google Calendar."""
     if not service:
@@ -89,7 +99,7 @@ def create_calendar_event(
             'dateTime': end_datetime.isoformat(),
             'timeZone': 'Asia/Kolkata',
         },
-        'attendees': attendees if attendees else [],
+        # 'attendees': attendees if attendees else [], # <--- CRITICAL CHANGE: COMMENT OUT OR REMOVE THIS LINE
         'reminders': {
             'useDefault': False,
             'overrides': [
@@ -104,7 +114,7 @@ def create_calendar_event(
         event = service.events().insert(
             calendarId=calendar_id,
             body=event,
-            sendNotifications=True,
+            sendNotifications=False, # <--- MODIFIED: Set to False, since we are not inviting attendees via Google. Your app will send the email.
             conferenceDataVersion=1
         ).execute()
         logger.info(f"Event created: {event.get('htmlLink')}")
@@ -112,7 +122,6 @@ def create_calendar_event(
     except HttpError as error:
         logger.error(f"An error occurred creating Google Calendar event: {error}")
         return None
-
 def get_free_busy_slots(service, calendar_id: str, start_time: datetime.datetime, end_time: datetime.datetime):
     """Gets free/busy information for a calendar within a time range."""
     if not service:
@@ -137,6 +146,36 @@ def get_free_busy_slots(service, calendar_id: str, start_time: datetime.datetime
         return []
 
 if __name__ == '__main__':
-    # Remove or comment out this block when deploying to Render
-    # as it attempts local server authentication which will fail.
-    pass # Keep this for local testing only
+    # This block is for local testing with Service Account, not browser flow
+    logger.info("Running calendar_service.py for local Service Account testing...")
+    service = get_calendar_service()
+    if service:
+        logger.info("Service account test: Calendar service acquired.")
+        # Example usage for local testing (uncomment to test after setting up service_account_key.json)
+        # from datetime import timedelta, time
+        # tomorrow = datetime.date.today() + timedelta(days=1)
+        # test_doctor_calendar_id = "smart-doctor-svc@smart-doctor-assistant-api.iam.gserviceaccount.com" # Service Account itself
+        # This should be the doctor's email, whose calendar is shared with the Service Account
+        # test_doctor_calendar_id = "dr.gautamkumar@gmail.com" # Replace with an actual doctor's shared calendar email
+
+        # start_event_time = datetime.datetime.combine(tomorrow, time(10, 0, 0))
+        # end_event_time = start_event_time + timedelta(minutes=30)
+        # event_id = create_calendar_event(
+        #     service,
+        #     test_doctor_calendar_id,
+        #     "Test Appointment",
+        #     "Testing Service Account",
+        #     start_event_time,
+        #     end_event_time,
+        #     attendees=[{'email': test_doctor_calendar_id}]
+        # )
+        # if event_id:
+        #     logger.info(f"Test event created with ID: {event_id}")
+        # else:
+        #     logger.warning("Failed to create test event locally.")
+
+        # busy_slots = get_free_busy_slots(service, test_doctor_calendar_id, start_event_time, end_event_time)
+        # logger.info(f"Test busy slots for {test_doctor_calendar_id}: {busy_slots}")
+
+    else:
+        logger.warning("Service account test: Failed to acquire calendar service.")

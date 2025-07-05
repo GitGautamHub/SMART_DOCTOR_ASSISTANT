@@ -26,6 +26,7 @@ backend/.env
 # Google API credentials and tokens
 backend/credentials.json
 backend/token.json
+backend/service_account_key.json
 
 
 frontend/smart-doctor-ui/node_modules/
