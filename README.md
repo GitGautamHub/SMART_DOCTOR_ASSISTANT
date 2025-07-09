@@ -38,8 +38,6 @@ SMART_DOCTOR_ASSISTANT/
 │
 ├── backend/
 │   ├── .env                   (Environment variables - NOT committed to Git)
-│   ├── credentials.json       (Google API credentials - NOT committed to Git)
-│   ├── token.json             (Google API auth token - NOT committed to Git)
 │   ├── __pycache__/           (Python bytecode cache - ignored by Git)
 │   ├── venv/                  (Python virtual environment - ignored by Git)
 │   ├── auth.py                (Authentication utilities)
@@ -426,28 +424,4 @@ Access the application in your browser: http://localhost:3000
     *   **Expected:** The AI should respond with a summary report based on appointments.
         
     *   **Verify:** Check your **backend terminal** where FastAPI is running for the detailed report printout.
-        
-
-Known Issues / Limitations
---------------------------
-
-While the system is highly functional, please note the following:
-
-1.  **Doctor Report RBAC Bypass (LLM Context Propagation):**
-    
-    *   Although role-based authentication (login, token validation, user roles) is implemented and frontend UI adapts, there is a persistent issue where the user\_info context is not reliably propagated by the LangChain AgentExecutor.ainvoke() method to the tool functions' arguments in all scenarios.
-        
-    *   As a result, the role-based access check within the get\_doctor\_summary\_report\_tool is currently not always enforcing access control when a non-doctor user (e.g., a patient) tries to request a doctor's report via natural language. The tool might execute despite the role.
-        
-    *   This would require further in-depth debugging of LangChain's context-passing mechanisms or alternative agent configurations in a production environment. However, the authentication layer itself (login, /users/me/) is fully functional.
-
-2.  **Google Calendar Integration on Deployment:**
-    * The Google Calendar API integration (for checking availability and booking events) **will NOT function on the deployed Render backend.**
-    * This is because the current authentication method (`InstalledAppFlow.from_client_secrets_file`) requires a browser-based local server authentication flow which is not possible on a headless cloud server like Render.
-    * For a production deployment, Google Service Accounts or alternative OAuth flows designed for server-to-server interaction would be required, which are beyond the scope of this assignment's "minimal" deployment instructions.
-    * **Impact:** On the live deployed app, doctor availability will only reflect existing appointments stored in the PostgreSQL database, and new bookings will be recorded in the database and send emails, but **no actual event will be created in Google Calendar.**
-        
-3.  **Doctor Notification Mechanism:**
-    
-    *   The doctor notification for summary reports is currently implemented as a simple console printout in the backend terminal. For a production system, this would be integrated with external notification platforms like Slack, WhatsApp Business API, or an in-app notification system.
         
