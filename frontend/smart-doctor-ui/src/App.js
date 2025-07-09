@@ -378,9 +378,6 @@ function App() {
                     <li>
                       Dr. Gulshan (Dentist) - <code>terceletbag@gmail.com</code>
                     </li>
-                    <li>
-                      Dr. Anjali (Dentist) - <code>anjali089ak@gmail.com</code>
-                    </li>
                   </ul>
                   Password for all doctors: <code>docpass123</code>
                   <br />
