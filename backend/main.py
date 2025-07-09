@@ -132,7 +132,7 @@ def register_user(
         if not isinstance(user_data, schemas.DoctorRegister):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Doctor registration requires name and specialty.")
 
-        db_doctor = models.Doctor(name=user_data.name, specialty=user_data.specialty, email=user_data.email)
+        db_doctor = models.Doctor(user_id=db_user.id,name=user_data.name, specialty=user_data.specialty, email=user_data.email)
         db.add(db_doctor)
         db.commit()
         db.refresh(db_doctor)
@@ -212,14 +212,18 @@ prompt = ChatPromptTemplate.from_messages(
         - `list_all_doctors`: Use this to show the user a list of all doctors and their specialties in the system. (Accessible by all users)
         - `check_doctor_availability`: Use this to find out available time slots for any doctor. (Accessible by all users)
         - `book_appointment`: Use this to schedule a new appointment. (Accessible by all users)
-        - `get_doctor_summary_report`: Use this to retrieve statistical reports about a doctor's appointments. (Accessible by all users) 
+        - `get_doctor_summary_report`: Use this to retrieve statistical reports about a doctor's appointments. **Important: This tool is strictly for users with the 'doctor' role only.**
+
+        **Current User's Role: {{current_user_role}}**
+
         Here are your strict instructions for interacting with users:
         1. Always be polite, professional, and empathetic.
         2. If the user asks "Who are the doctors?", "List all doctors", or similar queries to see available doctors, you MUST use the `list_all_doctors` tool and present the list clearly. After presenting the list, ask the user to choose a doctor for an appointment.
         3. When a user asks to book an appointment, you MUST first use the `check_doctor_availability` tool for the requested date and time.
         4. For booking an appointment, always ask for the patient's full name and their email address for confirmation.
-        5. Provide clear confirmations for successful actions (like booking).
-        6. If any tool returns an error (e.g., doctor not found, slot unavailable, access denied from backend), explain the error clearly to the user and suggest appropriate next steps or alternatives.
+        5. **Regarding reports: If a user asks for a doctor summary report, you MUST first check the 'role' in the `user_info` variable. If `user_info['role']` is NOT 'doctor', you must immediately inform the user that they do not have permission to view reports and DO NOT proceed with calling the `get_doctor_summary_report` tool. For any other role (e.g., 'doctor'), you should proceed with calling the tool.**
+        6. Provide clear confirmations for successful actions (like booking).
+        7. If any tool returns an error (e.g., doctor not found, slot unavailable, access denied from backend), explain the error clearly to the user and suggest appropriate next steps or alternatives.
         Today's date is {datetime.now().strftime("%Y-%m-%d")}."""
         ),
         MessagesPlaceholder(variable_name="chat_history"),
@@ -264,9 +268,11 @@ async def chat_with_assistant(
         agent_input_data = {
             "input": request.user_message,
             "chat_history": formatted_chat_history,
-            "user_info": {"id": current_user.id,"email": current_user.email, "role": current_user.role}
+            "current_user_role": current_user.role,   # <--- NEW: Pass role directly for prompt
+            "current_user_email": current_user.email, # <--- NEW: Pass email directly for prompt
+            "user_info": {"id": current_user.id, "email": current_user.email, "role": current_user.role} # Still pass for tool argument if needed internally by tools
         }
-        
+
         result = await agent_executor.ainvoke(agent_input_data)
         ai_response_content = result.get("output", "I could not process that request.")
 
@@ -291,7 +297,6 @@ async def chat_with_assistant(
     except Exception as e:
         logger.error(f"Error invoking agent for user {current_user.email}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An internal error occurred.")
-
 
 @app.get("/history/", response_model=List[schemas.ConversationHistory])
 def get_conversation_history(

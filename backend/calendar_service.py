@@ -14,10 +14,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
-# TOKEN_FILE = 'token.json' # Not needed for Service Account in deployment
-# CREDENTIALS_FILE = 'credentials.json' # Not needed for Service Account in deployment
-
-# NEW: Environment variable name for service account credentials JSON content (for deployment)
 GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_JSON")
 
 calendar_service = None

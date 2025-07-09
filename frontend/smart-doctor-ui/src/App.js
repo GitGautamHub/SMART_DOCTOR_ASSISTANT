@@ -28,7 +28,7 @@ function App() {
   // NEW: Instruction box state
   const [showInstructions, setShowInstructions] = useState(true);
 
-  const BACKEND_BASE_URL = 'https://smart-doctor-backend-api-gautam.onrender.com'; // change for local deployment as 'http://127.0.0.1:8000'
+  const BACKEND_BASE_URL = 'http://127.0.0.1:8000'; // change for local deployment as 'http://127.0.0.1:8000' 'https://smart-doctor-backend-api-gautam.onrender.com'
   const CHAT_URL = `${BACKEND_BASE_URL}/chat/`; 
   const HISTORY_URL = `${BACKEND_BASE_URL}/history/`;
 
@@ -308,7 +308,6 @@ function App() {
                 value={selectedRole}
                 onChange={(e) => {
                   setSelectedRole(e.target.value);
-                  // Clear doctor specific fields if switching to patient
                   if (e.target.value === 'patient') {
                     setDoctorName('');
                     setDoctorSpecialty('');
@@ -360,7 +359,6 @@ function App() {
       ) : (
         // Chat interface
         <div className="chat-container">
-          {/* Instructions Box */}
           {showInstructions && (
             <div className="instructions-box">
               <button className="close-instructions" onClick={() => setShowInstructions(false)}>✖</button>
@@ -370,40 +368,63 @@ function App() {
               </p>
               <ol>
                 <li>
-                  Register a Doctor: If you want to book an appointment with a new doctor, first register them. Select "Doctor" from the role dropdown, provide their full name and specialty.
-                  <br/>
-                  Pre-registered Doctor for Demo: You can directly book with {PRE_REGISTERED_DOCTOR.name} ({PRE_REGISTERED_DOCTOR.specialty}) using email: { PRE_REGISTERED_DOCTOR.email}. and password docpass123
-                  (If you haven't created this doctor in your DB, please do so via Swagger UI or register them now.)
+                  <strong>Register a Doctor:</strong> You can register any new doctor with their full name and specialty.
+                  <br />
+                  <strong>Pre-registered Doctors for Demo:</strong>
+                  <ul>
+                    <li>
+                      Dr. Gautam Kumar (General Medicine) - <code>gautamk8760@gmail.com</code>
+                    </li>
+                    <li>
+                      Dr. Gulshan (Dentist) - <code>terceletbag@gmail.com</code>
+                    </li>
+                    <li>
+                      Dr. Anjali (Dentist) - <code>anjali089ak@gmail.com</code>
+                    </li>
+                  </ul>
+                  Password for all doctors: <code>docpass123</code>
+                  <br />
+                  <strong>Only Dr. Gautam and Dr. Gulshan have Google Calendar linked</strong>. Appointments can only be booked with them unless other doctors link their Google Calendar.
                 </li>
                 <li>
-                  Login as Patient: Register as a "Patient" or login with an existing patient account.
+                  <strong>Login as Patient:</strong> Register as a "Patient" or login with an existing patient account.
+                  <br />
+                  Example:
+                  <ul>
+                    <li>Rahul Verma - <code>rahul.verma93@gmail.com</code></li>
+                    <li>Riya Kapoor - <code>riya.kapoor12@gmail.com</code></li>
+                  </ul>
+                  Password for all patients: <code>patientpass123</code>
                 </li>
                 <li>
-                  Book an Appointment (as Patient):
-                  <br/>
-                  Type: "Book me an appointment with {PRE_REGISTERED_DOCTOR.name} tomorrow at 10:00 AM. My name is [Your Name] and my email is [your_email@example.com]."
-                  <br/>
-                  (Replace `[Your Name]` and `[your_email@example.com]` with your details. Use a real email to receive confirmation.)
+                  <strong>Book an Appointment (as Patient):</strong>
+                  <br />
+                  Type:
+                  <br />
+                  <code>
+                    Book me an appointment with Dr. Gautam Kumar tomorrow at 10:00 AM. My name is [Your Name] and my email is [your_email@example.com].
+                  </code>
+                  <br />
+                  (Replace `[Your Name]` and `[your_email@example.com]` with your actual details.)
                 </li>
                 <li>
-                  Check Email & Calendar: Verify the appointment confirmation in your email and the event in the doctor's Google Calendar.
+                  <strong>Check Email & Calendar:</strong> You'll receive confirmation in your email and the event will appear in the doctor’s Google Calendar (only for linked accounts).
                 </li>
                 <li>
-                  Login as Doctor: Logout, then login with a "Doctor" account (e.g., {PRE_REGISTERED_DOCTOR.email}).
+                  <strong>Login as Doctor:</strong> Logout and then login as doctor (e.g., <code>gautamk8760@gmail.com</code>) to manage appointments.
                 </li>
                 <li>
-                  Access Doctor Report (as Doctor):
-                  <br/>
-                  Type: "Get my daily report for today." OR click the "Generate Daily Report" button.
-                  <br/>
-                  (You should see the report summary.)
+                  <strong>Get Daily Report:</strong>
+                  <br />
+                  Type: <code>Get my daily report for today</code> OR click the "Generate Daily Report" button.
                 </li>
               </ol>
               <p>
-                Note: For Google Calendar integration, ensure the doctor's email is a real Google account that you have authenticated during setup.
+                <strong>Note:</strong> To allow a doctor to receive calendar bookings, their Google Calendar must be integrated via the Google Auth link during setup.
               </p>
             </div>
           )}
+
 
           <div className="messages-display">
             {messages.map((msg, index) => (

@@ -50,7 +50,8 @@ class DoctorCreate(DoctorBase):
 
 class Doctor(DoctorBase):
     id: int
-    
+    user_id: Optional[int] = None 
+    user: Optional[User] = None 
     class Config:
         from_attributes = True
 

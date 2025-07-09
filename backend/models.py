@@ -12,7 +12,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="patient", nullable=False) # 'patient' or 'doctor'
     is_active = Column(Boolean, default=True)
-
+    doctors = relationship("Doctor", back_populates="user", uselist=False)
     patients = relationship("Patient", back_populates="user", uselist=False)
 
 class Patient(Base):
@@ -33,10 +33,12 @@ class Doctor(Base):
     __tablename__ = "doctors"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True) # THIS LINE IS CRUCIAL
     name = Column(String, index=True, nullable=False)
     specialty = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
 
+    user = relationship("User", back_populates="doctors")
     appointments = relationship("Appointment", back_populates="doctor")
 
 class Appointment(Base):
