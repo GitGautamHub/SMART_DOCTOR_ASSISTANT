@@ -1,4 +1,4 @@
-# Smart Doctor Appointment and Reporting Assistant
+# Niyukti: A New Approach to Appointments
 
 ## Project Overview
 
